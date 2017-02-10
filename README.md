@@ -2,6 +2,8 @@
 
 **Author:** Steven Obua (steven.obua@gmail.com)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.290216.svg)](https://doi.org/10.5281/zenodo.290216)
+
 These theory files are for use with Isabelle 2016. They accompany the paper [Local Lexing](http://www.proofpeer.net/papers/locallexing) and contain: 
 
 * the definition of and semantics for local lexing  
