@@ -2,7 +2,7 @@
 
 **Author:** Steven Obua (steven.obua@gmail.com)
 
-These theory files are for use with Isabelle 2016. They contain: 
+These theory files are for use with Isabelle 2016. They accompany the paper [Local Lexing](http://www.proofpeer.net/papers/locallexing) and contain: 
 
 * the definition of and semantics for local lexing  
 * a high-level algorithm which implements local lexing
