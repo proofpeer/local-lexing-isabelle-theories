@@ -123,7 +123,7 @@ next
   qed
 qed
 
-lemma 
+lemma path_append_token:
   assumes p: "p \<in> \<P> k u"
   assumes t: "t \<in> \<Z> k (Suc u)"
   assumes pt: "admissible (p@[t])"

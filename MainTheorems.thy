@@ -1,5 +1,5 @@
 theory MainTheorems
-imports TheoremD14
+imports PathLemmas
 begin
 
 context LocalLexing begin
@@ -61,9 +61,23 @@ proof -
       list.inject by auto
 qed    
 
+definition pvalid_with :: "tokens \<Rightarrow> item \<Rightarrow> nat \<Rightarrow> symbol list \<Rightarrow> bool"
+where
+  "pvalid_with p x u \<gamma> = 
+     (wellformed_tokens p \<and>
+     wellformed_item x \<and>
+     u \<le> length p \<and>
+     charslength p = item_end x \<and>
+     charslength (take u p) = item_origin x \<and>
+     is_derivation (terminals (take u p) @ [item_nonterminal x] @ \<gamma>) \<and>
+     derives (item_\<alpha> x) (terminals (drop u p)))"
+
+lemma pvalid_with: "pvalid p x = (\<exists> u \<gamma>. pvalid_with p x u \<gamma>)"
+  using pvalid_def pvalid_with_def by blast
+
 theorem Completeness:
   assumes p_in_ll: "p \<in> ll"
-  shows "\<exists> \<alpha>. pvalid p (finished_item \<alpha>) \<and> finished_item \<alpha> \<in> \<II>"
+  shows "\<exists> \<alpha>. pvalid_with p (finished_item \<alpha>) 0 [] \<and> finished_item \<alpha> \<in> \<II>"
 proof -
   have p: "p \<in> \<PP> \<and> charslength p = length Doc \<and> terminals p \<in> \<L>"
     using p_in_ll ll_def by auto
@@ -87,62 +101,22 @@ proof -
   have wellformed_finished_item: "wellformed_item (finished_item \<alpha>)"  
     apply (auto simp add: wellformed_item_def)
     using snd_d snd_d_in_\<RR> by metis    
-  have pvalid: "pvalid p (finished_item \<alpha>)" 
-    apply (auto simp add: pvalid_def)
+  have pvalid_with: "pvalid_with p (finished_item \<alpha>) 0 []" 
+    apply (auto simp add: pvalid_with_def)
     using wellformed_p apply blast
     using wellformed_finished_item apply blast
-    apply (rule_tac x="0" in exI)
-    apply auto 
     using p apply (simp add: finished_item_def)
-    apply (rule_tac x="[]" in exI)
     apply (simp add: is_derivation_def)
     by (simp add: \<alpha>)
+  then have "pvalid p (finished_item \<alpha>)" using pvalid_def pvalid_with_def by blast 
   then have "finished_item \<alpha> \<in> Gen \<PP>" using Gen_def mem_Collect_eq p by blast
   then have "finished_item \<alpha> \<in> \<II>" using \<II>_is_generated_by_\<PP> by blast 
-  with pvalid show ?thesis by blast
+  with pvalid_with show ?thesis by blast
 qed
-
-definition PROPER_START :: "bool" where
-  "PROPER_START = (\<forall> \<alpha> \<beta>. is_derivation (\<alpha> @ [\<SS>] @ \<beta>) \<longrightarrow> \<alpha> = [] \<or> \<beta> = [])"
-
-definition STRICT_LEXER :: "bool" where
-  "STRICT_LEXER = (\<forall> t \<in> \<TT>. 0 \<notin> Lex t Doc 0)"
-
-lemma no_chars_implies_empty_path:
-  assumes strict: "STRICT_LEXER"
-  assumes p_dom: "p \<in> \<PP>"
-  assumes no_chars_p: "chars p = []"
-  shows "p = []"
-proof -
-  {
-    assume p_nonempty: "p \<noteq> []"
-    with p_dom tokens_nth_in_\<Z> have "\<exists> u. p ! 0 \<in> \<Z> 0 u"
-      using charslength.simps charslength_of_prefix is_prefix_take le_0_eq length_greater_0_conv 
-        list.size(3) no_chars_p by fastforce
-    then have "p ! 0 \<in> \<X> 0" using \<Z>_subset_\<X> by blast  
-    then have "\<exists>t l \<omega>. p ! 0 = (t, \<omega>) \<and> t \<in> \<TT> \<and> l \<in> Lex t Doc 0  \<and> \<omega> = take l Doc"
-      using \<X>_def by auto
-    then obtain t l \<omega> where in_\<X>:
-      "p ! 0 = (t, \<omega>) \<and> t \<in> \<TT> \<and> l \<in> Lex t Doc 0 \<and> \<omega> = take l Doc" by blast
-    have "is_lexer (Lex t)"
-      by (simp add: Lex_is_lexer in_\<X>) 
-    with in_\<X> have "l \<le> length Doc" by (metis add.commute add.right_neutral is_lexer_def le0) 
-    with in_\<X> have length_\<omega>: "length \<omega> = l" by (simp add: min.absorb2)
-    from strict STRICT_LEXER_def in_\<X> have l_nonzero: "l \<noteq> 0" by meson
-    have "p = (p ! 0)#(tl p)" using p_nonempty
-      by (metis list.exhaust_sel nth_Cons_0) 
-    then have "charslength p = length \<omega> + charslength (tl p)" using in_\<X>
-      by (metis chars.simps(2) chars_of_token_simp charslength.simps length_append) 
-    then have "charslength p \<noteq> 0" using l_nonzero length_\<omega> using add_is_0 by linarith 
-    then have "chars p \<noteq> []" by simp
-  }
-  then show ?thesis using no_chars_p by auto   
-qed 
-
+  
 theorem Soundness:
   assumes finished_item_\<alpha>: "finished_item \<alpha> \<in> \<II>"
-  assumes condition: "STRICT_LEXER \<or> PROPER_START"
-  shows "\<exists> p. pvalid p (finished_item \<alpha>) \<and> p \<in> ll"
+  shows "\<exists> p. pvalid_with p (finished_item \<alpha>) 0 [] \<and> p \<in> ll"
 proof -
   have "finished_item \<alpha> \<in> Gen \<PP>"
     using \<II>_is_generated_by_\<PP> finished_item_\<alpha> by auto 
@@ -161,47 +135,27 @@ proof -
     using wellformed_item_def by blast
   then have "(\<SS>, \<alpha>) \<in> \<RR>" by simp 
   then have is_derivation_\<alpha>: "is_derivation \<alpha>" by (simp add: is_derivation_def leftderives_rule)
-  from condition have "r = 0 \<or> \<gamma> = []"
-  proof (induct rule: disjCases2)
-    case 1
-      have take_r_p_in_\<PP>: "take r p \<in> \<PP>" using is_prefix_take p prefixes_are_paths' by blast
-      with no_chars_implies_empty_path have "take r p = []" using pvalid 1 by blast
-      with pvalid have "r = 0" using le_0_eq list.size(3) take_eq_Nil by auto 
-      then show ?case by blast
-  next
-    case 2
-      note PS = 2
-      have "r = 0 \<or> r \<noteq> 0" by arith
-      then show ?case
-      proof (induct rule:disjCases2)
-        case 1 
-          then show ?case by blast
-      next
-        case 2 
-          then have take_r_not_empty: "take r (terminals p) \<noteq> []"
-            by (metis length_take length_terminals list.size(3) min.absorb2 pvalid)
-          with PS pvalid have "\<gamma> = []"
-            using PROPER_START_def append_Cons append_Nil by fastforce 
-          then show ?case by blast
-      qed
-  qed
-  then have "is_derivation (terminals p)"
-  proof (induct rule: disjCases2)
-    case 1
-      with pvalid have "derives \<alpha> (terminals p)" by simp
-      then show ?case using is_derivation_\<alpha> using derives_trans is_derivation_def by blast 
-  next
-    case 2
-      with pvalid have "is_derivation (take r (terminals p) @ [\<SS>])" by simp
-      then have "is_derivation (take r (terminals p) @ \<alpha>)" using is_derivation_\<alpha>
-        append_Nil2 is_derivation_def is_derivation_derives by force
-      then have "is_derivation (take r (terminals p) @ (drop r (terminals p)))" 
-        by (metis append_Nil2 pvalid is_derivation_derives)
-      then show "is_derivation (terminals p)" by simp 
-  qed  
-  then have "p \<in> ll"
-    by (simp add: \<L>_def is_word_terminals ll_def p pvalid)       
-  with pvalid_p_finished_item show ?thesis by auto
+  have drop_r_p_in_\<PP>: "drop r p \<in> \<PP>"
+    apply (rule drop_empty_tokens)
+    using p apply blast
+    using pvalid apply blast
+    using pvalid apply simp
+    by (metis append_Nil2 derives_trans is_derivation_\<alpha> is_derivation_def 
+      is_derivation_implies_admissible is_word_terminals_drop pvalid terminals_drop)
+  then have in_ll: "drop r p \<in> ll"
+    apply (auto simp add: ll_def) 
+    apply (metis append_Nil append_take_drop_id chars_append pvalid) 
+    using is_derivation_\<alpha> pvalid
+    by (metis (no_types, lifting) \<L>_def derives_trans is_derivation_def 
+      is_word_terminals_drop mem_Collect_eq terminals_drop)
+  have "pvalid_with (drop r p) (finished_item \<alpha>) 0 []"
+    apply (auto simp add: pvalid_with_def)
+    using \<PP>_wellformed drop_r_p_in_\<PP> apply blast 
+    using pvalid apply blast
+    apply (metis append_Nil append_take_drop_id chars_append pvalid)
+    apply (simp add: is_derivation_def)
+    using pvalid by blast
+  with in_ll show ?thesis by auto
 qed
 
 lemma is_finished_and_finished_item:
@@ -231,11 +185,10 @@ proof -
 qed 
 
 theorem Correctness:
-  assumes "STRICT_LEXER \<or> PROPER_START"
   shows "(ll \<noteq> {}) = earley_recognised"
 proof -
   have 1: "(ll \<noteq> {}) = (\<exists> \<alpha>. finished_item \<alpha> \<in> \<II>)"
-    using Soundness Completeness assms ex_in_conv by fastforce
+    using Soundness Completeness ex_in_conv by fastforce
   have 2: "(\<exists> \<alpha>. finished_item \<alpha> \<in> \<II>) = (\<exists> x \<in> \<II>. is_finished x)"
     using \<II>_def is_finished_and_finished_item wellformed_items_\<I> wellformed_items_def by auto
   show ?thesis using earley_recognised_def 1 2 by blast
