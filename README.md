@@ -2,7 +2,7 @@
 
 **Author:** Steven Obua (steven.obua@gmail.com)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.322419.svg)](https://doi.org/10.5281/zenodo.322419)
+[![DOI](https://zenodo.org/badge/81570874.svg)](https://zenodo.org/badge/latestdoi/81570874)
 
 These theory files are for use with Isabelle 2016. They accompany the paper [Local Lexing](https://arxiv.org/abs/1702.03277) and contain: 
 
